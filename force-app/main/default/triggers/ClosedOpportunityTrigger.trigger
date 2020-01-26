@@ -8,5 +8,5 @@ trigger ClosedOpportunityTrigger on Opportunity (after insert,after update) {
 			taskList.add(taskInstance);
 		}
 	}
-	Database.insert(taskList); my changes
+	Database.insert(taskList);
 }
