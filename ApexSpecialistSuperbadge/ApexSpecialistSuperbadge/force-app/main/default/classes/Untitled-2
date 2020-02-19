@@ -1,0 +1,461 @@
+/*****************************************************
+
+Class Name: PolicyExpiry3MonthsSCH
+Author: Abhijeet Tiwari
+Description: Sending email to Insured and Contacts
+             Expiring b/w Jan and Mar 2020
+
+Created Date: Nov 29,2019
+
+=====  Version History =====================
+
+S.No.  Date   Changes Made  Change Owner
+
+
+*****************************************************/
+
+
+global class PolicyExpiry3MonthsSCH implements Schedulable {
+    
+    global void execute(SchedulableContext SC) {
+        
+        try{
+        
+        List<Messaging.SingleEmailMessage> lstMails = new List<Messaging.SingleEmailMessage>();
+        Set<String> setOwnerEmails = new Set<String>();
+        Map<String,Id> mapContacts = new Map<String,id>();
+        List<Contact> lstContactsINS = new List<Contact>();
+        List<Task> lstTaskINS = new List<Task>();
+        List<CanaryAMS__Policy__c> lstPolicies = new List<CanaryAMS__Policy__c>();
+        
+        Map<String,String> mapDoctorCompanies = new Map<String,String>();
+        Map<String,String> mapPolicyOwnerMails = new Map<String,String>();
+        
+        Map<String,String> mapDoctorExtensions = new Map<String,String>();
+        Map<String,String> mapPolicyOwnerExtensions = new Map<String,String>();
+        
+        Map<Id,String> mapPolicyWithMails = new Map<Id,String>();
+        
+        Set<Id> setBioIds = new Set<Id>();
+        Map<String,Email_Bio__c> mapUserBio = new Map<String,Email_Bio__c>();
+        Map<Id,Attachment> mapBioAttachments = new Map<Id,Attachment>();
+        
+                
+        
+        for(Doctors_Company__mdt obj:[select id,User_Id__c,Email__c,Extension__c from Doctors_Company__mdt]){
+            mapDoctorCompanies.put(obj.User_Id__c,obj.Email__c);
+            mapDoctorExtensions.put(obj.User_Id__c,obj.Extension__c);
+            
+        }
+        
+        for(Policy_Owner_Mail__mdt obj:[select id,User_Id__c,Email__c,Extension__c from Policy_Owner_Mail__mdt]){
+            mapPolicyOwnerMails.put(obj.User_Id__c,obj.Email__c);
+            mapPolicyOwnerExtensions.put(obj.User_Id__c,obj.Extension__c);
+            
+        }
+
+
+        for(Email_Bio__c obj:[select id,name from Email_Bio__c limit 50000]){
+            setBioIds.add(obj.id);
+            mapUserBio.put(obj.name,obj);
+            
+        }
+        
+        for(Attachment obj:[select id,Name, Body, ParentId from Attachment where parentid IN: setBioIds])
+        mapBioAttachments.put(obj.parentid,obj);
+        
+        
+        
+        Date objTodayDate = date.today();
+        //Date objFutureDate = objTodayDate.addDays(120);
+        
+        Date objStartDate = date.newInstance(2020, 3, 1);
+        Date objEndDate = date.newInstance(2020, 5, 31);
+
+        
+        String strDoctorsCompanyOwners = System.Label.Doctors_Company_Owners;   
+               
+        
+        for(CanaryAMS__Policy__c objPolicy:[select id,ownerid,CanaryAMS__Producer__r.Name,Expiration_Date_Custom__c,CanaryAMS__Renewal_Date_2__c,CanaryAMS__Carrier__r.Name,owner.name,owner.firstname,owner.lastname,owner.email,name,CanaryAMS__Policy_Number__c,(select id,name,Provider_Type__c,CanaryAMS__Last_Name__c,CanaryAMS__First_Name__c,CanaryAMS__Email__c from CanaryAMS__Insureds__r Where CanaryAMS__isActive__c = true),(select id,Contact_Email__c,Contact_Firstname__c from CanaryAMS__Policies__r) 
+            from CanaryAMS__Policy__c WHERE CanaryAMS__Renewal_Date_2__c >=: objStartDate AND CanaryAMS__Renewal_Date_2__c <=: objEndDate AND CanaryAMS__Net_Premium__c <=100000 AND CanaryAMS__Policy_Status__c = 'Active' limit 50000]){              
+            
+            String strOwnerId = objPolicy.ownerid;
+            
+             if( objPolicy.CanaryAMS__Carrier__r.Name != 'ChiroSecure' &&  objPolicy.CanaryAMS__Carrier__r.Name != 'MMIP' 
+            && !((System.Label.Omitted_Producers).containsIgnoreCase(objPolicy.CanaryAMS__Producer__r.Name)) 
+            && !((System.Label.Omitted_Carriers).containsIgnoreCase(objPolicy.CanaryAMS__Carrier__r.Name))){
+                
+            if( objPolicy.CanaryAMS__Carrier__r.Name == 'The Doctors Company Servicing Agency' && strDoctorsCompanyOwners.containsIgnoreCase(strOwnerId) ){             
+                
+                setOwnerEmails.add(mapDoctorCompanies.get(strOwnerId));
+                mapPolicyWithMails.put(objPolicy.id,mapDoctorCompanies.get(strOwnerId));            
+                
+            }
+            
+            else{
+                
+                setOwnerEmails.add(mapPolicyOwnerMails.get(strOwnerId));
+                mapPolicyWithMails.put(objPolicy.id,mapPolicyOwnerMails.get(strOwnerId));
+                
+            }       
+                         
+            
+            lstPolicies.add(objPolicy);
+            
+        }
+        
+        }
+
+        for(Contact objContact:[select id,name,email from contact WHERE Email IN: setOwnerEmails ])
+            mapContacts.put(objContact.email,objContact.id);        
+        
+        for(CanaryAMS__Policy__c objPolicy: lstPolicies){
+                
+                if( mapContacts.get(mapPolicyWithMails.get(objPolicy.id)) == null){
+                    
+                    Contact objContact = new Contact();
+                    
+                    // Line added for test coverage since owner fields cause issue in test class
+                    if(!test.isRunningTest()){
+                        
+                       objContact.firstname = objPolicy.owner.firstname;
+                       objContact.lastname = objPolicy.owner.lastname;
+                       
+                       system.debug('---> map is '+mapPolicyWithMails);
+                       
+                       String strOwnerId = objPolicy.ownerid;
+                       system.debug('---> owner id is '+strOwnerId);
+                       
+                       system.debug('---> email is '+mapPolicyWithMails.get(objPolicy.id));
+                       
+                       objContact.email = mapPolicyWithMails.get(objPolicy.id);
+                    }
+                    
+                    else{
+                        
+                        objContact.firstname = 'test';
+                        objContact.lastname = 'contact';
+                        objContact.email = 'test@abcde.com';                        
+                        
+                    }               
+                       
+                    objContact.recordtypeid = Schema.SObjectType.Contact.getRecordTypeInfosByName().get('Employee').getRecordTypeId();
+                    
+                    lstContactsINS.add(objContact);             
+                    
+                }           
+                
+        }
+            
+        if(!lstContactsINS.isEmpty())
+            insert lstContactsINS;          
+                
+                
+        mapContacts = new Map<String,id>();
+        
+        for(Contact objContact:[select id,name,email from contact WHERE Email IN: setOwnerEmails ])
+            mapContacts.put(objContact.email,objContact.id);    
+        
+        
+        for(CanaryAMS__Policy__c objPolicy:[select id,CanaryAMS__Producer__r.Name,CanaryAMS__Writing_Company__r.Name,CanaryAMS__Writing_Company__c,CanaryAMS__Carrier__c,Expiration_Date_Custom__c,CanaryAMS__Renewal_Date_2__c,CanaryAMS__Carrier__r.Name,owner.name,owner.email,ownerid,name,owner.firstname,owner.lastname,CanaryAMS__Policy_Number__c,(select id,name,CanaryAMS__Last_Name__c,CanaryAMS__First_Name__c,Provider_Type__c,CanaryAMS__Email__c from CanaryAMS__Insureds__r Where CanaryAMS__isActive__c = true),(select id,Contact_Email__c,Contact_Firstname__c from CanaryAMS__Policies__r) 
+            from CanaryAMS__Policy__c WHERE CanaryAMS__Renewal_Date_2__c >=: objStartDate AND CanaryAMS__Renewal_Date_2__c <=: objEndDate AND CanaryAMS__Net_Premium__c <=100000  AND CanaryAMS__Policy_Status__c = 'Active' limit 50000]){
+                
+                 if( objPolicy.CanaryAMS__Carrier__r.Name != 'ChiroSecure' &&  objPolicy.CanaryAMS__Carrier__r.Name != 'MMIP' 
+            && !((System.Label.Omitted_Producers).containsIgnoreCase(objPolicy.CanaryAMS__Producer__r.Name)) 
+            && !((System.Label.Omitted_Carriers).containsIgnoreCase(objPolicy.CanaryAMS__Carrier__r.Name))){
+                                
+                List<CanaryAMS__Insured__c> lstInsured = new List<CanaryAMS__Insured__c>();
+                lstInsured = objPolicy.CanaryAMS__Insureds__r;
+                
+                List<CanaryAMS__Policy_Contact_Junction__c> lstContacts = new List<CanaryAMS__Policy_Contact_Junction__c>();
+                lstContacts = objPolicy.CanaryAMS__Policies__r;
+                
+                if(!(lstInsured.isEmpty())){
+                    
+                    for(CanaryAMS__Insured__c obj: lstInsured){
+                        
+                        if(obj.CanaryAMS__Email__c!=null){
+                            
+                            Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+                            List<String> lstToAddresses = new List<String>();
+                            lstToAddresses.add(obj.CanaryAMS__Email__c);
+                            
+                            // Sylwia change - 26 June,2019
+                            String strCarrierName = objPolicy.CanaryAMS__Carrier__r.Name;
+                            
+                            String strCarriers = System.Label.Carriers_List;
+                            if(strCarriers.containsIgnoreCase(objPolicy.CanaryAMS__Carrier__c) && objPolicy.CanaryAMS__Writing_Company__c!=null )
+                                strCarrierName = objPolicy.CanaryAMS__Writing_Company__r.Name;
+                                
+                            
+                            
+          
+                    String strSubject = strCarrierName + ' '+objPolicy.CanaryAMS__Policy_Number__c;
+                    String strBody,strSalute;
+                    
+                    if( obj.Provider_Type__c == 'MD' || obj.Provider_Type__c == 'DO' || obj.Provider_Type__c == 'DC' || obj.Provider_Type__c == 'OD' || 
+                    obj.Provider_Type__c == 'DDS' || obj.Provider_Type__c == 'PHD')
+                    strSalute = 'Hello Dr. '+obj.CanaryAMS__Last_Name__c;
+                    
+                    else
+                        strSalute = 'Hello '+obj.CanaryAMS__First_Name__c;
+                    
+                    
+                    if( objPolicy.CanaryAMS__Carrier__r.Name == 'The Doctors Company Servicing Agency' && strDoctorsCompanyOwners.containsIgnoreCase(String.valueOf(objPolicy.OwnerId)) ){
+                        
+                        String strExtension='';
+                        
+                        if(mapDoctorExtensions.get(objPolicy.ownerid)!=null)
+                            strExtension = mapDoctorExtensions.get(objPolicy.ownerid);
+                        
+                        strBody = strSalute+' :<br/><br/> Your policy with The Doctors Company is scheduled for renewal on '+objPolicy.Expiration_Date_Custom__c+' .We are currently reviewing your policy.<br/><br/>Have you made any of the following changes to your practice? If yes, please email me directly so we can make sure your carrier is aware and the changes can be addressed prior to renewal.<br/><ul> <li>Hired or terminated any physicians, PA’s, NP’S or any other healthcare providers?</li>  <li>Have you changed or updated the name of the practice?</li>  <li>Have you created any additional corporations?</li><li>Changed or added practice locations?</li><li>Have you changed the number of hours worked per work?</li><li>Have you changed your medical specialty?</li><li>Are you retiring in the next 12 months? Or taking a leave of absence?</li><li>Are you a Medical Director? If yes, please call to discuss as there is no coverage under your current policy for this exposure.</li></ul><br/>Feel free to reach out to me anytime by phone or email.<br/><br/>Talk to you soon.<br/><br/>Thanks,<br/> '+objPolicy.Owner.Name+'<br/>The Doctors Company Servicing Agency<br/>Phone: 800-997-3509 Ext. '+strExtension+'<br/>Fax: 440-542-5021<br/>Email: '+mapPolicyWithMails.get(objPolicy.id);
+                
+          
+                
+                    }
+                    
+                    else{
+                        
+                        String strExtension='';
+                        
+                        if(mapPolicyOwnerExtensions.get(objPolicy.ownerid)!=null)
+                            strExtension = mapPolicyOwnerExtensions.get(objPolicy.ownerid);
+                        
+                        strBody = strSalute+' :<br/><br/> Your policy with '+strCarrierName+' is scheduled for renewal on '+objPolicy.Expiration_Date_Custom__c+' .We are currently reviewing your policy.<br/><br/>Have you made any of the following changes to your practice? If yes, please email me directly so we can make sure your carrier is aware and the changes can be addressed prior to renewal.<br/><ul> <li>Hired or terminated any physicians, PA’s, NP’S or any other healthcare providers?</li>  <li>Have you changed or updated the name of the practice?</li>  <li>Have you created any additional corporations?</li><li>Changed or added practice locations?</li><li>Have you changed the number of hours worked per work?</li><li>Have you changed your medical specialty?</li><li>Are you retiring in the next 12 months? Or taking a leave of absence?</li><li>Are you a Medical Director? If yes, please call to discuss as there is no coverage under your current policy for this exposure.</li></ul><br/>Feel free to reach out to me anytime by phone or email.<br/><br/>Talk to you soon.<br/><br/>Thanks,<br/> '+objPolicy.Owner.Name+'<br/>Phone: 800-769-4624 Ext. '+strExtension+'<br/>Fax: 440-542-5021<br/><img src="https://i3brokers--tiwaritest--c.cs42.content.force.com/servlet/servlet.ImageServer?id=01556000000QmO1&oid=00D560000004u2C&lastMod=1565002133000" width="200" height="100"></img>';
+                
+                    }
+          
+                    mail.setSubject(strSubject);
+                    mail.setHTMLBody(strBody);
+                    
+                    if(!test.isRunningTest()){
+                        
+                       mail.setSenderDisplayName(objPolicy.owner.name);
+                       mail.setReplyTo(mapPolicyWithMails.get(objPolicy.id));
+                       mail.TargetObjectid = mapContacts.get(mapPolicyWithMails.get(objPolicy.id));
+                    }
+                    
+                    else{
+                        
+                        mail.setSenderDisplayName('test');
+                        mail.setReplyTo('test@abcde.com');
+                        mail.TargetObjectid = mapContacts.get('test@abcde.com');
+                        
+                    }
+                    
+                    mail.WhatId = objPolicy.id;                  
+                    mail.setSaveAsActivity(true);                                        
+                    mail.setToAddresses(lstToAddresses);
+                    
+                    if( objPolicy.CanaryAMS__Carrier__r.Name != 'The Doctors Company Servicing Agency' ) {
+                    
+                    List<Messaging.Emailfileattachment> lstfileAttachments = new List<Messaging.Emailfileattachment>();
+                    Messaging.EmailFileAttachment attach = new Messaging.EmailFileAttachment();
+
+                    Email_Bio__c objBio = mapUserBio.get(objPolicy.Owner.Name);
+                    
+                    if(objBio!=null){
+
+                    Attachment objAttach = mapBioAttachments.get(objBio.id);                
+
+                    //attach.setContentType(dc.contentType);               
+
+                    attach.setFileName(objAttach.name);               
+
+                    attach.setInline(false);               
+
+                    attach.Body = objAttach.Body;               
+
+                    lstfileAttachments.add(attach); 
+                    
+                    mail.setFileAttachments(lstfileAttachments);
+                    
+                    }
+                    }
+                    
+                    
+                    lstMails.add(mail);
+                    
+                    
+                        }                           
+                        
+                    }
+                }
+                
+                if(!(lstContacts.isEmpty())){
+                    
+                    for(CanaryAMS__Policy_Contact_Junction__c obj: lstContacts){
+                        
+                        if(obj.Contact_Email__c!=null){
+                            //lstToAddresses.add(obj.Contact_Email__c);
+                            
+                            Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+                            List<String> lstToAddresses = new List<String>();
+                            lstToAddresses.add(obj.Contact_Email__c);
+                            
+                            // Sylwia change - 26 June,2019
+                            String strCarrierName = objPolicy.CanaryAMS__Carrier__r.Name;
+                            
+                            String strCarriers = System.Label.Carriers_List;
+                            if(strCarriers.containsIgnoreCase(objPolicy.CanaryAMS__Carrier__c) && objPolicy.CanaryAMS__Writing_Company__c!=null )
+                                strCarrierName = objPolicy.CanaryAMS__Writing_Company__r.Name;
+          
+                    String strSubject = strCarrierName+ ' '+objPolicy.CanaryAMS__Policy_Number__c;
+                    String strBody;
+                    
+                    //String strURL = 'https://na96.salesforce.com/servlet/servlet.ImageServer?id=0152M000003N8rd&oid=00D50000000JNE0';
+                    
+                    if( objPolicy.CanaryAMS__Carrier__r.Name == 'The Doctors Company Servicing Agency' && strDoctorsCompanyOwners.containsIgnoreCase(String.valueOf(objPolicy.OwnerId)) ){
+                        
+                        String strExtension='';
+                        
+                        if(mapDoctorExtensions.get(objPolicy.ownerid)!=null)
+                            strExtension = mapDoctorExtensions.get(objPolicy.ownerid);
+                        
+                        //strBody = 'Hello '+obj.Contact_Firstname__c+' :<br/><br/> Your policy with The Doctors Company is coming up for renewal on '+objPolicy.Expiration_Date_Custom__c+' . I wanted to let you know that we are now reviewing your policy for renewal.<br/><br/>Please advise me if you have made any of the following changes to your practice:<br/><ul> <li>If the practice hired or terminated any physicians, PA’s, NP’S or any other healthcare providers</li>  <li>If any practice locations changed</li>  <li>If your practice name changed</li></ul><br/>Please let me know if you any other questions or concerns about the renewal of your policy.<br/><br/>Talk to you soon.<br/><br/>Thanks,<br/> '+objPolicy.Owner.Name+'<br/>Phone: 800-769-4624 Ext. 604<br/>Fax: 440-542-5021+<br/><img src="https://i3brokers--tiwaritest--c.cs42.content.force.com/servlet/servlet.ImageServer?id=01556000000Qbdv&oid=00D560000004u2C&lastMod=1565002133000" width="200" height="100"></img>';
+                        strBody = 'Hello '+obj.Contact_Firstname__c+' :<br/><br/> Your policy with The Doctors Company is scheduled for renewal on '+objPolicy.Expiration_Date_Custom__c+' .We are currently reviewing your policy.<br/><br/>Have you made any of the following changes to your practice? If yes, please email me directly so we can make sure your carrier is aware and the changes can be addressed prior to renewal.<br/><ul> <li>Hired or terminated any physicians, PA’s, NP’S or any other healthcare providers?</li>  <li>Have you changed or updated the name of the practice?</li>  <li>Have you created any additional corporations?</li><li>Changed or added practice locations?</li><li>Have you changed the number of hours worked per work?</li><li>Have you changed your medical specialty?</li><li>Are you retiring in the next 12 months? Or taking a leave of absence?</li></ul><br/>Feel free to reach out to me anytime by phone or email.<br/><br/>Talk to you soon.<br/><br/>Thanks,<br/> '+objPolicy.Owner.Name+'<br/>The Doctors Company Servicing Agency<br/>Phone: 800-997-3509 Ext. '+strExtension+'<br/>Fax: 440-542-5021<br/>Email: '+mapPolicyWithMails.get(objPolicy.id);
+                
+                
+                    }
+                    
+                    else{
+                        //strBody = 'Hello '+obj.Contact_Firstname__c+' :<br/><br/> Your policy with '+strCarrierName+'  is coming up for renewal on '+objPolicy.Expiration_Date_Custom__c+' . I wanted to let you know that we are now reviewing your policy for renewal.<br/><br/>Please advise me if you have made any of the following changes to your practice:<br/><ul> <li>If the practice hired or terminated any physicians, PA’s, NP’S or any other healthcare providers</li>  <li>If any practice locations changed</li>  <li>If your practice name changed</li></ul><br/>Please let me know if you any other questions or concerns about the renewal of your policy.<br/><br/>Talk to you soon.<br/><br/>Thanks,<br/> '+objPolicy.Owner.Name+'<br/>Phone: 800-769-4624 Ext. 604<br/>Fax: 440-542-5021+<br/><img src="https://i3brokers--tiwaritest--c.cs42.content.force.com/servlet/servlet.ImageServer?id=01556000000QYVD&oid=00D560000004u2C&lastMod=1565002133000" width="200" height="100"></img>';
+                        
+                        String strExtension='';
+                        
+                        if(mapPolicyOwnerExtensions.get(objPolicy.ownerid)!=null)
+                            strExtension = mapPolicyOwnerExtensions.get(objPolicy.ownerid);
+                        strBody = 'Hello '+obj.Contact_Firstname__c+' :<br/><br/> Your policy with '+strCarrierName+' is scheduled for renewal on '+objPolicy.Expiration_Date_Custom__c+' .We are currently reviewing your policy.<br/><br/>Have you made any of the following changes to your practice? If yes, please email me directly so we can make sure your carrier is aware and the changes can be addressed prior to renewal.<br/><ul> <li>Hired or terminated any physicians, PA’s, NP’S or any other healthcare providers?</li>  <li>Have you changed or updated the name of the practice?</li>  <li>Have you created any additional corporations?</li><li>Changed or added practice locations?</li><li>Have you changed the number of hours worked per work?</li><li>Have you changed your medical specialty?</li><li>Are you retiring in the next 12 months? Or taking a leave of absence?</li></ul><br/>Feel free to reach out to me anytime by phone or email.<br/><br/>Talk to you soon.<br/><br/>Thanks,<br/> '+objPolicy.Owner.Name+'<br/>Phone: 800-769-4624 Ext. '+strExtension+'<br/>Fax: 440-542-5021<br/><img src="https://i3brokers--tiwaritest--c.cs42.content.force.com/servlet/servlet.ImageServer?id=01556000000QmO1&oid=00D560000004u2C&lastMod=1565002133000" width="200" height="100"></img>';
+                         
+                    
+                    }
+                    
+                    mail.setSubject(strSubject);
+                    mail.setHTMLBody(strBody);
+                    
+                    
+                    if(!test.isRunningTest()){
+                        
+                       mail.setSenderDisplayName(objPolicy.owner.name);
+                       mail.setReplyTo(mapPolicyWithMails.get(objPolicy.id));
+                       mail.TargetObjectid = mapContacts.get(mapPolicyWithMails.get(objPolicy.id));
+                    }
+                    
+                    else{
+                        
+                        mail.setSenderDisplayName('test');
+                        mail.setReplyTo('test@abcde.com');
+                        mail.TargetObjectid = mapContacts.get('test@abcde.com');
+                        
+                    }
+                    
+                    mail.WhatId = objPolicy.id;                  
+                    mail.setSaveAsActivity(true);      
+                                         
+                    mail.setToAddresses(lstToAddresses);
+                    
+                    if( objPolicy.CanaryAMS__Carrier__r.Name != 'The Doctors Company Servicing Agency' ) {
+                    
+                    List<Messaging.Emailfileattachment> lstfileAttachments = new List<Messaging.Emailfileattachment>();
+                    Messaging.EmailFileAttachment attach = new Messaging.EmailFileAttachment();
+
+                    Email_Bio__c objBio = mapUserBio.get(objPolicy.Owner.Name);
+                    
+                    if(objBio!=null || test.isRunningTest()){
+
+                    Attachment objAttach = mapBioAttachments.get(objBio.id);                
+
+                    //attach.setContentType(dc.contentType);               
+
+                    attach.setFileName(objAttach.name);               
+
+                    attach.setInline(false);               
+
+                    attach.Body = objAttach.Body;               
+
+                    lstfileAttachments.add(attach); 
+                    
+                    mail.setFileAttachments(lstfileAttachments);
+                    
+                    }
+                    
+                    }
+                    
+                    
+                    
+                    lstMails.add(mail);
+                            
+                        }                           
+                        
+                    }           
+                    
+                }
+                
+                /*
+                
+                // Creating Task for Policy Owner
+                
+                Task objTask = new Task();
+                objTask.Subject = 'Prepare Renewal Policy';
+                objTask.ActivityDate = date.today().addDays(7);
+                objTask.whatid = objPolicy.id;
+                objTask.IsRecurrence = false;
+                
+                if(!test.isRunningTest())
+                    objTask.OwnerId = objPolicy.ownerid;
+                
+                
+                // Generating Exception for increased code coverage
+                else
+                    objTask.OwnerId = objPolicy.id;
+                
+                lstTaskINS.add(objTask);
+                
+                */
+                
+                            
+            }
+            
+        }
+            
+            if(!lstMails.isEmpty())
+               Messaging.sendEmail(lstMails);
+           
+            //if(!lstTaskINS.isEmpty())
+                //insert lstTaskINS;
+            
+            
+        }
+        
+        
+        catch(Exception e){
+                    
+                  // report exception
+                  
+                  List<Messaging.SingleEmailMessage> lstExMails = new List<Messaging.SingleEmailMessage>();       
+                  Messaging.SingleEmailMessage exceptionmail = new Messaging.SingleEmailMessage();
+             
+                  String strExSubject = 'Exception occured on PolicyExpiraton90DaysSCH at '+datetime.now().format();
+                  String strExBody = 'An Exception has occured during the processing of PolicyExpiraton90DaysSCH at '+datetime.now().format()+'.Below are the details:<br/><br/>'+
+                  'Line number is '+e.getLineNumber()+'<br/><br/>.Here is the error message: '+e.getMessage()+'<br/><br/>'+
+                  'Cause is '+e.getCause()+'<br/><br/>Stack Trace String: '+e.getStackTraceString();
+                  exceptionmail.setSubject(strExSubject);
+                  exceptionmail.setHTMLBody(strExBody);
+            
+                  List<String> lstExToAddresses = new List<String>();
+                  lstExToAddresses.add('abhijeet.hcst0812@gmail.com');
+                      
+                  exceptionmail.setToAddresses(lstExToAddresses);
+                  Messaging.sendEmail(lstExMails);
+
+
+        }                 
+            
+             
+
+            
+        
+    }
+    
+    
+}

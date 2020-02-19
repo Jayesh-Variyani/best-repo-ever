@@ -1,0 +1,213 @@
+/*****************************************************
+
+Class Name: PolicyExpiry3MonthsSCHTest 
+Author: Abhijeet Tiwari
+Description: Code coverage for PolicyExpiry3MonthsSCH
+
+Created Date: Feb 4,2020
+
+=====  Version History =====================
+
+S.No.  Date   Changes Made  Change Owner
+
+
+*****************************************************/
+
+
+@isTest
+
+public class PolicyExpiry3MonthsSCHTest{
+    
+    static testmethod void testSCH(){
+        
+        Account objAccount = new Account();
+        objAccount.Name = 'test account';
+        insert objAccount;
+        
+        Contact objContact = new Contact();
+        objContact.Firstname = 'test';
+        objContact.Lastname = 'contact';
+        objContact.Email = 'test@contacttest.com';
+        objContact.AccountId = objAccount.id;
+        insert objContact;
+        
+        CanaryAMS__Carrier__c objCarrier = new CanaryAMS__Carrier__c();
+        objCarrier.name = 'test carrier';
+        objCarrier.CanarySeed__Account__c = objAccount.id;
+        insert objCarrier;
+        
+        CanaryAMS__Producers__c objProducer = new CanaryAMS__Producers__c();
+        objProducer.name = 'test producer';
+        insert objProducer;
+        
+        CanaryAMS__Policy__c objPolicy = new CanaryAMS__Policy__c();
+        objPolicy.CanaryAMS__Account__c = objAccount.id;
+        objPolicy.name = 'test policy';
+        objPolicy.CanaryAMS__Carrier__c = objCarrier.id;
+        objPolicy.CanaryAMS__Policy_Number__c = '123';
+        objPolicy.CanaryAMS__Effective_Date__c = date.newInstance(2020, 3, 1);
+        objPolicy.CanaryAMS__Renewal_Date_2__c = date.newInstance(2020, 3, 31);
+        objPolicy.CanaryAMS__Policy_Term__c = 'Other';
+        objPolicy.CanaryAMS__Net_Premium__c = 10000;
+        objPolicy.CanaryAMS__Producer__c = objProducer.id;
+        insert objPolicy;
+        
+        CanaryAMS__Insured__c objInsured = new CanaryAMS__Insured__c();
+        objInsured.Name = 'test insured';
+        objInsured.CanaryAMS__First_Name__c = 'test';
+        objInsured.CanaryAMS__Last_Name__c = 'insured';
+        objInsured.CanaryAMS__Email__c = 'test@insured.com';
+        objInsured.CanaryAMS__Policy__c = objPolicy.id;
+        objInsured.CanaryAMS__isActive__c = true;
+        insert objInsured;
+        
+        CanaryAMS__Policy_Contact_Junction__c objConnect =  new CanaryAMS__Policy_Contact_Junction__c();
+        objConnect.CanaryAMS__Contact__c = objContact.id;
+        objConnect.CanaryAMS__Policy__c = objPolicy.id;
+        insert objConnect;
+        
+        Test.startTest();
+        PolicyExpiry3MonthsSCH sh1 = new PolicyExpiry3MonthsSCH();
+
+        String sch = '0 0 23 * * ?'; 
+        system.schedule('Test policy expire 120 days', sch, sh1); 
+        Test.stopTest();        
+        
+        
+    }
+    
+    static testmethod void testSCHException(){
+        
+        Account objAccount = new Account();
+        objAccount.Name = 'test account';
+        insert objAccount;
+        
+        Contact objContact = new Contact();
+        objContact.Firstname = 'test';
+        objContact.Lastname = 'contact';
+        objContact.Email = 'test@contacttest.com';
+        objContact.AccountId = objAccount.id;
+        insert objContact;
+        
+        CanaryAMS__Carrier__c objCarrier = new CanaryAMS__Carrier__c();
+        objCarrier.name = 'test carrier';
+        objCarrier.CanarySeed__Account__c = objAccount.id;
+        insert objCarrier;
+        
+        CanaryAMS__Producers__c objProducer = new CanaryAMS__Producers__c();
+        objProducer.name = 'test producer';
+        insert objProducer;
+        
+        CanaryAMS__Policy__c objPolicy = new CanaryAMS__Policy__c();
+        objPolicy.CanaryAMS__Account__c = objAccount.id;
+        objPolicy.name = 'test policy';
+        objPolicy.CanaryAMS__Carrier__c = objCarrier.id;
+        objPolicy.CanaryAMS__Policy_Number__c = '123';
+        objPolicy.CanaryAMS__Effective_Date__c = date.newInstance(2020, 3, 1);
+        objPolicy.CanaryAMS__Renewal_Date_2__c = date.newInstance(2020, 3, 31);
+        objPolicy.CanaryAMS__Policy_Term__c = 'Other';
+        objPolicy.CanaryAMS__Net_Premium__c = 10000;
+        objPolicy.CanaryAMS__Producer__c = objProducer.id;
+        insert objPolicy;
+        
+        CanaryAMS__Insured__c objInsured = new CanaryAMS__Insured__c();
+        objInsured.Name = 'test insured';
+        objInsured.CanaryAMS__First_Name__c = 'test';
+        objInsured.CanaryAMS__Last_Name__c = 'insured';
+        objInsured.CanaryAMS__Email__c = 'test@insured.com';
+        objInsured.CanaryAMS__Policy__c = objPolicy.id;
+        objInsured.CanaryAMS__isActive__c = true;
+        insert objInsured;
+        
+        CanaryAMS__Policy_Contact_Junction__c objConnect =  new CanaryAMS__Policy_Contact_Junction__c();
+        objConnect.CanaryAMS__Contact__c = objContact.id;
+        objConnect.CanaryAMS__Policy__c = objPolicy.id;
+        insert objConnect;
+        
+        Email_Bio__c objBio = new Email_Bio__c();
+        objBio.Name = 'Aaron Richard';
+        insert objBio;
+        
+        Test.startTest();
+        PolicyExpiry3MonthsSCH sh1 = new PolicyExpiry3MonthsSCH();
+
+        String sch = '0 0 23 * * ?'; 
+        system.schedule('Test policy expire 120 days', sch, sh1); 
+        Test.stopTest();        
+        
+        
+    }
+    
+    static testmethod void testSCHEmailBio(){
+        
+        Account objAccount = new Account();
+        objAccount.Name = 'test account';
+        insert objAccount;
+        
+        Contact objContact = new Contact();
+        objContact.Firstname = 'test';
+        objContact.Lastname = 'contact';
+        objContact.Email = 'test@contacttest.com';
+        objContact.AccountId = objAccount.id;
+        insert objContact;
+        
+        CanaryAMS__Carrier__c objCarrier = new CanaryAMS__Carrier__c();
+        objCarrier.name = 'test carrier';
+        objCarrier.CanarySeed__Account__c = objAccount.id;
+        insert objCarrier;
+        
+        CanaryAMS__Producers__c objProducer = new CanaryAMS__Producers__c();
+        objProducer.name = 'test producer';
+        insert objProducer;
+        
+        CanaryAMS__Policy__c objPolicy = new CanaryAMS__Policy__c();
+        objPolicy.CanaryAMS__Account__c = objAccount.id;
+        objPolicy.name = 'test policy';
+        objPolicy.CanaryAMS__Carrier__c = objCarrier.id;
+        objPolicy.CanaryAMS__Policy_Number__c = '123';
+        objPolicy.CanaryAMS__Effective_Date__c = date.newInstance(2020, 3, 1);
+        objPolicy.CanaryAMS__Renewal_Date_2__c = date.newInstance(2020, 3, 31);
+        objPolicy.CanaryAMS__Policy_Term__c = 'Other';
+        objPolicy.CanaryAMS__Net_Premium__c = 10000;
+        objPolicy.CanaryAMS__Producer__c = objProducer.id;
+        objPolicy.CanaryAMS__Policy_Status__c = 'Active';
+        insert objPolicy;
+        
+        CanaryAMS__Insured__c objInsured = new CanaryAMS__Insured__c();
+        objInsured.Name = 'test insured';
+        objInsured.CanaryAMS__First_Name__c = 'test';
+        objInsured.CanaryAMS__Last_Name__c = 'insured';
+        objInsured.CanaryAMS__Email__c = 'test@insured.com';
+        objInsured.CanaryAMS__Policy__c = objPolicy.id;
+        objInsured.CanaryAMS__isActive__c = true;
+        insert objInsured;
+        
+        CanaryAMS__Policy_Contact_Junction__c objConnect =  new CanaryAMS__Policy_Contact_Junction__c();
+        objConnect.CanaryAMS__Contact__c = objContact.id;
+        objConnect.CanaryAMS__Policy__c = objPolicy.id;
+        insert objConnect;
+        
+        Email_Bio__c objBio = new Email_Bio__c();
+        objBio.Name = 'Aaron Richard';
+        insert objBio;
+        
+        Attachment attach=new Attachment();     
+        attach.Name='Unit Test Attachment';
+        Blob bodyBlob=Blob.valueOf('Unit Test Attachment Body');
+        attach.body=bodyBlob;
+        attach.parentId=objBio.id;
+        insert attach;
+        
+        
+        Test.startTest();
+        PolicyExpiry3MonthsSCH sh1 = new PolicyExpiry3MonthsSCH();
+
+        String sch = '0 0 23 * * ?'; 
+        system.schedule('Test policy expire 120 days', sch, sh1); 
+        Test.stopTest();        
+        
+        
+    }
+    
+    
+}
