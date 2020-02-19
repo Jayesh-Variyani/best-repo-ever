@@ -1,0 +1,16 @@
+{
+  "status": 0,
+  "result": {
+    "createdById": "0052w000000U4KoAAK",
+    "createdByName": "Jayesh Variyani",
+    "createdDate": "2020-02-02T09:34:07.000Z",
+    "fileName": "triggers/MaintenanceRequest.trigger",
+    "fullName": "MaintenanceRequest",
+    "id": "01q2w000000lvoZAAQ",
+    "lastModifiedById": "0052w000000U4KoAAK",
+    "lastModifiedByName": "Jayesh Variyani",
+    "lastModifiedDate": "2020-02-02T09:34:07.000Z",
+    "manageableState": "unmanaged",
+    "type": "ApexTrigger"
+  }
+}
